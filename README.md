@@ -61,6 +61,9 @@ npm start
 
 Visit `http://localhost:8080`
 
+The root page shows an app list generated from HTML files in `public/`, so newly added
+front-end pages appear there automatically.
+
 ## How It Works
 
 ### Architecture
