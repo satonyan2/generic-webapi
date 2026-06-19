@@ -43,6 +43,7 @@
                 <ul class="selections" id="selections"></ul>
                 
                 <div class="answer-feedback" id="answerFeedback"></div>
+                <div class="answer-explanation" id="answerExplanation"></div>
                 
                 <button class="btn" id="nextBtn" onclick="nextQuestion()" style="display: none;">次の問題</button>
                 <button class="btn" id="finishBtn" onclick="showResults()" style="display: none;">結果を見る</button>
@@ -164,6 +165,8 @@
             });
 
             document.getElementById('answerFeedback').style.display = 'none';
+            document.getElementById('answerExplanation').style.display = 'none';
+            document.getElementById('answerExplanation').textContent = '';
             document.getElementById('nextBtn').style.display = 'none';
             document.getElementById('finishBtn').style.display = 'none';
         }
@@ -201,6 +204,14 @@
             } else {
                 feedback.className = 'answer-feedback incorrect';
                 feedback.textContent = `不正解。正解は「${question.selections[correctAnswer]}」です。`;
+            }
+
+            const explanation = document.getElementById('answerExplanation');
+            if (question.explanation) {
+                explanation.textContent = question.explanation;
+                explanation.style.display = 'block';
+            } else {
+                explanation.style.display = 'none';
             }
 
             if (currentQuestionIndex < quizData.length - 1) {

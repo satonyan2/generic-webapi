@@ -88,6 +88,16 @@
     border: 2px solid #e53e3e;
 }
 
+.answer-explanation {
+    display: none;
+    background: #f7fafc;
+    border-left: 4px solid #667eea;
+    color: #2d3748;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    padding: 14px 16px;
+}
+
 .score {
     text-align: center;
     font-size: 24px;
