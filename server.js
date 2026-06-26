@@ -20,11 +20,14 @@ const MODELS = {
 };
 const MODEL = MODELS[PROVIDER];
 
-let promptTemplate;
+let promptTemplates;
 try {
-    promptTemplate = fs.readFileSync('prompt.md', 'utf8');
+    promptTemplates = {
+        quiz: fs.readFileSync('prompt.md', 'utf8'),
+        trip: fs.readFileSync('prompt-trip.md', 'utf8'),
+    };
 } catch (error) {
-    console.error('Error reading prompt.md:', error);
+    console.error('Error reading prompt template:', error);
     process.exit(1);
 }
 
@@ -40,12 +43,17 @@ app.get('/api/pages', (req, res) => {
 
 // 問題数の上限（過剰なリクエストでトークンを浪費しないようにする）
 const MAX_COUNT = 20;
+const MAX_DAYS = 5;
 
 app.post('/api/', async (req, res) => {
     try {
         // title と、変数置換に使うその他のキーを受け取る
         // （prompt.md がプロンプトを定義するので、リクエストでの上書きは許可しない）
-        const { title = 'Generated Content', ...variables } = req.body;
+        const { title = 'Generated Content', app: appName = 'quiz', returnRaw = false, ...variables } = req.body;
+        const promptTemplate = promptTemplates[appName];
+        if (!promptTemplate) {
+            return res.status(400).json({ error: 'Invalid app type' });
+        }
 
         // count が指定されている場合は 1〜MAX_COUNT の範囲に収める
         if (variables.count !== undefined) {
@@ -57,21 +65,33 @@ app.post('/api/', async (req, res) => {
             }
         }
 
-        // prompt.md のテンプレート変数 ${key} をリクエストの値で置換する
+        if (variables.days !== undefined) {
+            const days = Number(variables.days);
+            if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) {
+                return res.status(400).json({
+                    error: `days must be an integer between 1 and ${MAX_DAYS}`,
+                });
+            }
+        }
+
+        // プロンプトテンプレート内の ${key} をリクエストの値で置換する
         const finalPrompt = fillTemplate(promptTemplate, variables);
 
-        let result;
+        let responseText;
         if (PROVIDER === 'openai') {
-            result = await callOpenAI(finalPrompt);
+            responseText = await callOpenAI(finalPrompt);
         } else if (PROVIDER === 'gemini') {
-            result = await callGemini(finalPrompt);
+            responseText = await callGemini(finalPrompt);
         } else {
             return res.status(400).json({ error: 'Invalid provider configuration' });
         }
 
+        const result = extractArray(responseText);
+
         res.json({
             title: title,
             data: result,
+            rawJson: returnRaw ? responseText : undefined,
         });
 
     } catch (error) {
@@ -81,7 +101,7 @@ app.post('/api/', async (req, res) => {
     }
 });
 
-// prompt.md 内の ${key} を variables の値で安全に置換する
+// プロンプトテンプレート内の ${key} を variables の値で安全に置換する
 function fillTemplate(template, variables) {
     return template.replace(/\$\{(\w+)\}/g, (match, key) => {
         return Object.prototype.hasOwnProperty.call(variables, key)
@@ -119,7 +139,7 @@ async function callOpenAI(prompt) {
 
     const data = await response.json();
     const responseText = data.choices[0].message.content;
-    return extractArray(responseText);
+    return responseText;
 }
 
 async function callGemini(prompt) {
@@ -151,7 +171,7 @@ async function callGemini(prompt) {
 
     const data = await response.json();
     const responseText = data.candidates[0].content.parts[0].text;
-    return extractArray(responseText);
+    return responseText;
 }
 
 // LLM が返した JSON 文字列をパースし、最初に見つかった配列を取り出す

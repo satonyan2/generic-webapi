@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ライブ遠征しおりメーカー</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="trip.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <p class="header-kicker">Concert Trip Planner</p>
+                <h1>ライブ遠征しおりメーカー</h1>
+            </div>
+        </div>
+
+        <main class="planner-shell">
+            <p class="planner-intro">会場・日程・移動条件を入れると、ライブ当日の動きや前後の過ごし方までまとめた遠征しおりを作成します。</p>
+
+            <section id="plannerForm">
+                <div class="planner-grid">
+                    <div class="form-group">
+                        <label for="artist">アーティスト・公演名</label>
+                        <input type="text" id="artist" value="推しのアリーナ公演" placeholder="例: バンド名、ツアー名">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venue">会場</label>
+                        <input type="text" id="venue" value="横浜アリーナ" placeholder="例: 横浜アリーナ、京セラドーム大阪">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="destination">遠征先エリア</label>
+                        <input type="text" id="destination" value="新横浜・横浜" placeholder="例: 新横浜・横浜、梅田・難波">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="departureArea">出発地</label>
+                        <input type="text" id="departureArea" value="東京" placeholder="例: 東京、名古屋、福岡">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="liveDate">ライブ日</label>
+                        <input type="date" id="liveDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="days">遠征日数</label>
+                        <input type="number" id="days" min="1" max="5" value="2">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="budget">予算感</label>
+                        <select id="budget">
+                            <option value="節約重視">節約重視</option>
+                            <option value="普通" selected>普通</option>
+                            <option value="少し贅沢">少し贅沢</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transport">主な移動手段</label>
+                        <select id="transport">
+                            <option value="電車・新幹線中心">電車・新幹線中心</option>
+                            <option value="飛行機中心">飛行機中心</option>
+                            <option value="高速バス中心">高速バス中心</option>
+                            <option value="車移動">車移動</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hotelStyle">宿泊方針</label>
+                        <select id="hotelStyle">
+                            <option value="会場近くを優先">会場近くを優先</option>
+                            <option value="駅近を優先">駅近を優先</option>
+                            <option value="価格重視">価格重視</option>
+                            <option value="日帰り想定">日帰り想定</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="style">遠征スタイル</label>
+                        <select id="style">
+                            <option value="グッズ購入を優先">グッズ購入を優先</option>
+                            <option value="開演までゆっくり">開演までゆっくり</option>
+                            <option value="聖地巡礼やカフェも楽しむ">聖地巡礼やカフェも楽しむ</option>
+                            <option value="終演後すぐ帰れる動線重視">終演後すぐ帰れる動線重視</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group wide">
+                        <label for="theme">やりたいこと</label>
+                        <input type="text" id="theme" value="グッズ購入、写真スポット、終演後に軽くごはん" placeholder="例: 物販、同行者とカフェ、聖地巡礼">
+                    </div>
+
+                    <div class="form-group wide">
+                        <label for="conditions">気をつけたいこと</label>
+                        <input type="text" id="conditions" value="荷物を少なめにしたい。雨でも動きやすくしたい。" placeholder="例: 夜行バス利用、初めての会場、終電が心配">
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn" type="button" onclick="generateTrip()">遠征しおりを作る</button>
+                </div>
+            </section>
+
+            <section class="results" id="results">
+                <div class="summary-bar">
+                    <h2 id="resultTitle"></h2>
+                    <p id="resultCondition"></p>
+                </div>
+                <div class="expedition-board" id="expeditionBoard"></div>
+                <div class="day-list" id="dayList"></div>
+                <div class="actions">
+                    <button class="btn btn-secondary" type="button" onclick="toggleRawJson()">JSONを表示</button>
+                    <button class="btn" type="button" onclick="resetForm()">条件を変える</button>
+                </div>
+                <pre class="raw-json" id="rawJson"></pre>
+            </section>
+        </main>
+
+        <div class="status" id="status">Ready</div>
+        <div class="loading" id="loading">AIがライブ遠征しおりを生成中...</div>
+    </div>
+
+    <script>
+        let rawGeneratedJson = '';
+        let itineraryData = [];
+        let currentConditions = {};
+
+        function getValue(id) {
+            return document.getElementById(id).value.trim();
+        }
+
+        async function generateTrip() {
+            const artist = getValue('artist');
+            const venue = getValue('venue');
+            const destination = getValue('destination');
+            const departureArea = getValue('departureArea');
+            const liveDate = getValue('liveDate') || '未定';
+            const days = Number(getValue('days'));
+            const theme = getValue('theme');
+            const budget = getValue('budget');
+            const transport = getValue('transport');
+            const hotelStyle = getValue('hotelStyle');
+            const style = getValue('style');
+            const conditions = getValue('conditions') || '特になし';
+
+            if (!artist || !venue || !destination || !departureArea || !theme || !Number.isInteger(days) || days < 1 || days > 5) {
+                alert('公演名、会場、遠征先、出発地、日数、やりたいことを正しく入力してください。日数は1〜5日です。');
+                return;
+            }
+
+            currentConditions = { artist, venue, destination, departureArea, liveDate, days, theme, budget, transport, hotelStyle, style, conditions };
+
+            setStatus('遠征プランを生成しています...', '#168aad');
+            document.getElementById('loading').classList.add('show');
+
+            try {
+                const response = await fetch('/api/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        app: 'trip',
+                        title: `${artist} ${destination} ${days}日間のライブ遠征しおり`,
+                        returnRaw: true,
+                        artist,
+                        venue,
+                        destination,
+                        departureArea,
+                        liveDate,
+                        days,
+                        theme,
+                        budget,
+                        transport,
+                        hotelStyle,
+                        style,
+                        conditions
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'API error');
+                }
+
+                const result = await response.json();
+                rawGeneratedJson = result.rawJson || JSON.stringify({ data: result.data }, null, 2);
+
+                const parsed = JSON.parse(rawGeneratedJson);
+                itineraryData = parsed.data;
+                validateItinerary(itineraryData);
+                renderItinerary(result.title, currentConditions);
+                setStatus('遠征しおりができました', '#17855f');
+            } catch (error) {
+                console.error(error);
+                alert('遠征しおりの生成に失敗しました: ' + error.message);
+                setStatus('生成に失敗しました', '#d64045');
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        function validateItinerary(data) {
+            if (!Array.isArray(data) || data.length === 0) {
+                throw new Error('data配列が見つかりません。');
+            }
+
+            data.forEach((day) => {
+                const requiredTimes = ['morning', 'afternoon', 'evening'];
+                requiredTimes.forEach((key) => {
+                    if (!day[key] || !day[key].place || !day[key].activity) {
+                        throw new Error(`${key} の形式が正しくありません。`);
+                    }
+                });
+
+                if (!Array.isArray(day.food) || !Array.isArray(day.tips)) {
+                    throw new Error('foodまたはtipsが配列ではありません。');
+                }
+            });
+        }
+
+        function renderItinerary(title, conditions) {
+            document.getElementById('plannerForm').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('resultTitle').textContent = title;
+            document.getElementById('resultCondition').textContent =
+                `${conditions.artist} / ${conditions.venue} / ${formatDate(conditions.liveDate)} / ${conditions.transport} / ${conditions.style}`;
+
+            renderExpeditionBoard(conditions);
+
+            const dayList = document.getElementById('dayList');
+            dayList.innerHTML = '';
+
+            itineraryData.forEach((day) => {
+                const card = document.createElement('article');
+                card.className = 'day-card';
+
+                const header = document.createElement('div');
+                header.className = 'day-header';
+                header.appendChild(createTextElement('span', `Day ${day.day}`, 'day-label'));
+                header.appendChild(createTextElement('h3', day.title || `${day.day}日目のプラン`));
+                card.appendChild(header);
+
+                const timeGrid = document.createElement('div');
+                timeGrid.className = 'time-grid';
+                timeGrid.appendChild(createTimeBlock('午前', day.morning));
+                timeGrid.appendChild(createTimeBlock('午後', day.afternoon));
+                timeGrid.appendChild(createTimeBlock('夜', day.evening));
+                card.appendChild(timeGrid);
+
+                const detailRow = document.createElement('div');
+                detailRow.className = 'detail-row';
+                detailRow.appendChild(createChipSection('ごはん・休憩候補', day.food));
+                detailRow.appendChild(createTipsSection(day));
+                card.appendChild(detailRow);
+
+                dayList.appendChild(card);
+            });
+
+            document.getElementById('rawJson').textContent = JSON.stringify(JSON.parse(rawGeneratedJson), null, 2);
+        }
+
+        function renderExpeditionBoard(conditions) {
+            const board = document.getElementById('expeditionBoard');
+            board.innerHTML = '';
+
+            const overview = createBoardPanel('遠征メモ', [
+                `出発地: ${conditions.departureArea}`,
+                `会場: ${conditions.venue}`,
+                `宿泊: ${conditions.hotelStyle}`,
+                `予算: ${conditions.budget}`
+            ]);
+            const checklist = createChecklistPanel('持ち物チェック', [
+                'チケット・身分証',
+                'モバイルバッテリー',
+                '交通系IC・予約画面',
+                'タオル・双眼鏡',
+                '雨具・小さめバッグ'
+            ]);
+            const guard = createBoardPanel('当日の確認', [
+                '開場・開演・終演予定をスクショ',
+                '物販列と入場口の位置を事前確認',
+                '終演後の駅混雑と終電を確認',
+                '会場周辺のロッカー候補を控える'
+            ]);
+
+            board.appendChild(overview);
+            board.appendChild(checklist);
+            board.appendChild(guard);
+        }
+
+        function createBoardPanel(title, items) {
+            const section = document.createElement('section');
+            section.className = 'board-panel';
+            section.appendChild(createTextElement('h3', title));
+
+            const list = document.createElement('ul');
+            items.forEach((item) => list.appendChild(createTextElement('li', item)));
+            section.appendChild(list);
+            return section;
+        }
+
+        function createChecklistPanel(title, items) {
+            const section = document.createElement('section');
+            section.className = 'board-panel checklist-panel';
+            section.appendChild(createTextElement('h3', title));
+
+            const list = document.createElement('div');
+            list.className = 'check-list';
+            items.forEach((item, index) => {
+                const label = document.createElement('label');
+                label.className = 'check-item';
+
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.id = `check-${index}`;
+
+                const span = createTextElement('span', item);
+                label.appendChild(input);
+                label.appendChild(span);
+                list.appendChild(label);
+            });
+
+            section.appendChild(list);
+            return section;
+        }
+
+        function createTimeBlock(label, item) {
+            const block = document.createElement('section');
+            block.className = 'time-block';
+            block.appendChild(createTextElement('strong', `${label} ${item.time || ''}`));
+            block.appendChild(createTextElement('h4', item.place));
+            block.appendChild(createTextElement('p', item.activity));
+            return block;
+        }
+
+        function createChipSection(title, values) {
+            const section = document.createElement('section');
+            section.appendChild(createTextElement('h4', title));
+
+            const list = document.createElement('div');
+            list.className = 'chip-list';
+            values.forEach((value) => list.appendChild(createTextElement('span', value, 'chip')));
+            section.appendChild(list);
+            return section;
+        }
+
+        function createTipsSection(day) {
+            const section = document.createElement('section');
+            section.appendChild(createTextElement('h4', `遠征メモ: ${day.budgetNote || '予算に合わせて調整'}`));
+
+            const list = document.createElement('ul');
+            list.className = 'tip-list';
+            day.tips.forEach((tip) => list.appendChild(createTextElement('li', tip)));
+            section.appendChild(list);
+            return section;
+        }
+
+        function formatDate(value) {
+            if (!value || value === '未定') return 'ライブ日未定';
+            const date = new Date(`${value}T00:00:00`);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleDateString('ja-JP', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'short'
+            });
+        }
+
+        function createTextElement(tagName, text, className) {
+            const element = document.createElement(tagName);
+            if (className) element.className = className;
+            element.textContent = text;
+            return element;
+        }
+
+        function toggleRawJson() {
+            const raw = document.getElementById('rawJson');
+            raw.style.display = raw.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function resetForm() {
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('plannerForm').style.display = 'block';
+            document.getElementById('rawJson').style.display = 'none';
+            setStatus('Ready', '#17855f');
+        }
+
+        function setStatus(message, color) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.color = color;
+        }
+
+        document.getElementById('liveDate').valueAsDate = new Date();
+        setStatus('Ready', '#17855f');
+    </script>
+</body>
+</html>
