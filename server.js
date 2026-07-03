@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const path = require('path');
 // API Key などの環境変数は .env.local から読み込む
 require('dotenv').config({ path: '.env.local' });
 
@@ -7,7 +8,10 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 app.use(express.json());
-app.use(express.static('public'));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'trip.html'));
+});
+app.use(express.static('public', { index: false }));
 
 // ===== 設定 =====
 // 利用するLLMプロバイダを選択します（'openai' または 'gemini'）
